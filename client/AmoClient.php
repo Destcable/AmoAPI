@@ -128,7 +128,7 @@ class AmoClient
         file_put_contents('storage/' . $this->config['client_id'] . '.json', json_encode($data));
     }
 
-    private function getDataToken()
+    private function getDataToken() // TODO: перенести в Storage
     {
         $fileName = 'storage/' . $this->config['client_id'] . '.json';
 
