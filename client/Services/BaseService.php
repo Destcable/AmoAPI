@@ -35,32 +35,18 @@ class BaseService
     public function save()
     {
         $modifiedFields = $this->model->getModifiedFields();
+
         if ($this->entity === "contacts") {
-            $modifiedFields = [
-                'name' => 'Имя контакта',
-                'custom_fields' => [
-                    [
-                        "field_id" => 3,
-                        "field_name" => "Телефон",
-                        "field_code" => "PHONE",
-                        "field_type" => "multitext",
-                        "values"=> [
-                            [
-                                "value" => "+79123",
-                                "enum_id" => 1,
-                                "enum" => "WORK"
-                            ]
-                        ]
-                    ],
-                ],
-            ];
-            // $modifiedFields['custom_fields_values'][0]['field_code'] = "PHONE";
-            // $modifiedFields['custom_fields_values'][0]['field_code'][0]['values'][0]['value'] = "+79123";
+            $modifiedFields['custom_fields_values'][0]['field_code'] = "PHONE";
+            $modifiedFields['custom_fields_values'][0]['values'][0]['value'] = "+7919";
+
+            $modifiedFields['custom_fields_values'][1]['field_code'] = "EMAIL";
+            $modifiedFields['custom_fields_values'][1]['values'][0]['value'] = "art@mail.ru";
         }
 
-        // if (!empty($modifiedFields['contact_id'])) {
-        //     $modifiedFields['_embedded']['contacts'][0]['id'] = $modifiedFields['contact_id'];
-        // }
+        if (!empty($modifiedFields['contact_id'])) {
+            $modifiedFields['_embedded']['contacts'][0]['id'] = $modifiedFields['contact_id'];
+        }
 
         $this->checkRequiredFields($modifiedFields);
 

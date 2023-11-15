@@ -12,8 +12,11 @@ class AmoController
     public function create()
     {
         $client = new AmoClient(include('api/app/config.php'));
-        CreateContact::handle($client, $_POST);
-        // CreateLead::handle($client, $_POST);
-        // Response::success(["data" => 123]);
+        $contact = CreateContact::handle($client, $_POST);
+        $contactID = $contact['data']['_embedded']['contacts'][0]['id'];
+
+        $response = CreateLead::handle($client, $_POST, $contactID);
+
+        Response::success($response, $response['status']);
     }
 }
