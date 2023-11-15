@@ -9,7 +9,8 @@ class LeadModel extends BaseModel
     protected array $writableFields = [
         'id',
         'status_id',
-        'price'
+        'price',
+        'contact_id'
     ];
 
     protected array $requiredFields = [

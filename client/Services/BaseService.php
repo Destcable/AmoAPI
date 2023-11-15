@@ -34,21 +34,33 @@ class BaseService
 
     public function save()
     {
-        $this->model->getModifiedFields()['_embedded']['contacts']['id'] =11371419;
         $modifiedFields = $this->model->getModifiedFields();
+        if ($this->entity === "contacts") {
+            $modifiedFields = [
+                'name' => 'Имя контакта',
+                'custom_fields' => [
+                    [
+                        "field_id" => 3,
+                        "field_name" => "Телефон",
+                        "field_code" => "PHONE",
+                        "field_type" => "multitext",
+                        "values"=> [
+                            [
+                                "value" => "+79123",
+                                "enum_id" => 1,
+                                "enum" => "WORK"
+                            ]
+                        ]
+                    ],
+                ],
+            ];
+            // $modifiedFields['custom_fields_values'][0]['field_code'] = "PHONE";
+            // $modifiedFields['custom_fields_values'][0]['field_code'][0]['values'][0]['value'] = "+79123";
+        }
 
-        var_dump($modifiedFields);
-
-        $data = [
-        'name' => 'Заявка с сайта от ' . $modifiedFields['name'],
-        'price' => $modifiedFields['price'],
-        '_embedded' => [
-            'contacts' => [
-                [
-                    'id' => 11371419,
-                ]
-            ]
-        ]];
+        // if (!empty($modifiedFields['contact_id'])) {
+        //     $modifiedFields['_embedded']['contacts'][0]['id'] = $modifiedFields['contact_id'];
+        // }
 
         $this->checkRequiredFields($modifiedFields);
 
