@@ -2,10 +2,12 @@
 
 namespace Client\Services;
 
-use Client\Models\ContactModel;
 use Client\Services\BaseService;
+use Client\Models\ContactModel;
+use Client\Traits\NoteTrait;
 
 class ContactService extends BaseService
 {
-    protected string $entity = 'contacts';
+    public string $entity = 'contacts';
+    protected $model = ContactModel::class;
 }

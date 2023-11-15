@@ -2,33 +2,20 @@
 
 namespace Client;
 
-use Api\App\Utils\Storage;
-use Client\OAuth;
 use Client\Services\ContactService;
 use Client\Services\LeadService;
+use Exception;
 
-class AmoClient 
-{ 
-    private array $config = []; 
+class AmoClient
+{
+    private array $config = [];
+    private string $url;
+    private array $tokenData = [];
 
     public function __construct(array $config)
     {
         $this->config = $config;
-    }
-
-    public function firstAuth(string $code)
-    {
-        $auth = new OAuth($this->config['url']);
-
-        $authData = [
-            'client_secret' => $this->config['client_secret'],
-            'client_id' => $this->config['client_id'],
-            'redirect_uri' => $this->config['redirect_uri'],
-            'code' => $code,
-            'grant_type' => 'authorization_code'
-        ];
-
-        return $auth->queryAccessToken($authData);
+        $this->url = "https://{$this->config['subdomain']}.amocrm.ru/api/v4/";
     }
 
     public function contacts()
@@ -41,32 +28,130 @@ class AmoClient
         return new LeadService($this);
     }
 
-    public function postQuery(string $path, array $data)
+    public function authByCode(string $code)
     {
-        $curl = curl_init();
+        $tokenData = [
+            'client_id' => $this->config['client_id'],
+            'client_secret' => $this->config['client_secret'],
+            'redirect_uri' => $this->config['redirect_uri'],
+            'code' => $code,
+            'grant_type' => 'authorization_code'
+        ];
 
+        $response = $this->queryAccessToken($tokenData);
+
+        if ($response['status'] == 200) {
+            $response['data']['date'] = time();
+
+            $this->saveDataToken($response['data']);
+            $this->tokenData = $response['data'];
+        }
+
+        return $response;
+    }
+
+    public function postQuery(string $path, array $data): array
+    {
+        if (empty($this->tokenData)) {
+            $this->getDataToken();
+        }
+
+        if (!$this->isTokenExpired()) {
+            $this->refreshAccessToken();
+        }
+
+        $curl = curl_init();
         curl_setopt_array($curl, [
-            CURLOPT_URL => 'https://artmobpavlov21.amocrm.ru/api/v4/companies',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_URL => $this->url . $path,
             CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6ImE3YWE3MGY5NmExZmRiYjdkNGViZmZjNjA2MTFkMDkzZmQ3Y2Y1OGY4ZjljMTgyN2FkZTc1Nzg2YWJhYmE5MGI2YWJmNzBiMTBlNWNkNTJiIn0.eyJhdWQiOiI4NWM2MDQwNC1lY2FhLTQ0NmYtYmYzYi1mYjkzNzA3MmEzYjEiLCJqdGkiOiJhN2FhNzBmOTZhMWZkYmI3ZDRlYmZmYzYwNjExZDA5M2ZkN2NmNThmOGY5YzE4MjdhZGU3NTc4NmFiYWJhOTBiNmFiZjcwYjEwZTVjZDUyYiIsImlhdCI6MTY5OTk5NjU0NywibmJmIjoxNjk5OTk2NTQ3LCJleHAiOjE3MDAwODI5NDcsInN1YiI6IjEwMzM0NzAyIiwiZ3JhbnRfdHlwZSI6IiIsImFjY291bnRfaWQiOjMxNDA0OTI2LCJiYXNlX2RvbWFpbiI6ImFtb2NybS5ydSIsInZlcnNpb24iOjIsInNjb3BlcyI6WyJwdXNoX25vdGlmaWNhdGlvbnMiLCJmaWxlcyIsImNybSIsImZpbGVzX2RlbGV0ZSIsIm5vdGlmaWNhdGlvbnMiXX0.AzWW2zfdWlhEIltRGdgcC3bObxg-izDo5oebBmrKdmsniOrxdwKxwEZRQuCJfkTPkzO29JqeogCU9YA80kAgD_s3oV3vbdZRSA43FUx3qCKZxXnG7zcuw1zk9VzgOKw0ZdWv2KWxfwENvnZ54Y0jKIybI0Tb_HJ4KbrwsCNr8MfP7jsQmnwnTjkV5t0OC2O_oiyUpxCozB0hdFqBbqHLUPI-Ggz1gv6Mlef5_nb3Q7RLY0BHM9OZQOac0_vG-pmF369vQoS5585k0WQSdd2WOAa5kSJYPx5BLvZcV-jMvPekqX1-rtmpH9Rc2TJdJFqGNq6Pz6LZIsTW7CKYqK7TGQ',
+                'Authorization: Bearer ' . $this->tokenData['access_token'],
                 'Content-Type: application/json'
             ],
             CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => json_encode([ 
-                "name" => "Павлов Артем Ренатович"
-            ]),
+            CURLOPT_POSTFIELDS => json_encode($data),
         ]);
         
         $response = curl_exec($curl);
         $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        var_dump($response);
+
         curl_close($curl);
 
-        return [ ];
+        return $this->curlResponse($response, $status);
     }
 
-    private function getAccessToken()
+    private function queryAccessToken($data)
     {
-        return Storage::get('storage/'.$this->config['client_id'] . '.json');
+        $curl = curl_init();
+
+        curl_setopt_array($curl, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_URL => 'https://' . $this->config['subdomain'] . '.amocrm.ru/oauth2/access_token',
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => json_encode($data),
+        ]);
+
+        $response = curl_exec($curl);
+        $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+
+        curl_close($curl);
+
+        return $this->curlResponse($response, $status);
+    }
+
+    private function isTokenExpired(): bool
+    {
+        return (time() - $this->tokenData['date']) > $this->tokenData['expires_in'];
+    }
+
+    private function refreshAccessToken()
+    {
+        $tokenRefreshData = [
+            'client_id' => $this->config['client_id'],
+            'refresh_token' => $this->tokenData['refresh_token'],
+            'grant_type' => 'refresh_token'
+        ];
+
+        $response = $this->queryAccessToken($tokenRefreshData);
+
+        if ($response['status'] == 200) {
+            $response['data']['date'] = time();
+
+            $this->saveDataToken($response['data']);
+            $this->tokenData = $response['data'];
+        }
+    }
+
+    private function saveDataToken(array $data): void
+    {
+        file_put_contents('storage/' . $this->config['client_id'] . '.json', json_encode($data));
+    }
+
+    private function getDataToken()
+    {
+        $fileName = 'storage/' . $this->config['client_id'] . '.json';
+
+        if (file_exists($fileName)) {
+            $fileContent = file_get_contents($fileName);
+            $this->tokenData = json_decode($fileContent, true);
+        } else {
+            throw new Exception('Файл не существует');
+        }
+    }
+
+    private function curlResponse($data, $status): array
+    {
+        $data = json_decode($data, true);
+
+        if ($status < 200 || $status >= 300) {
+            $errorDetail = isset($data['detail']) ? $data['detail'] : 'Отсутствует описание ошибки';
+            throw new Exception('Ошибка запроса: {код: ' . $status . ', описание: ' . $errorDetail . '} ');
+
+        }
+        return [
+            "data" => $data,
+            "status" => $status
+        ];
     }
 }

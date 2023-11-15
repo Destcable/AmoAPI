@@ -17,7 +17,7 @@ class AuthController
 
         $client = new AmoClient($config);
         
-        $response = $client->firstAuth($_POST['code']);
+        $response = $client->authByCode($_POST['code']);
 
         if ($response['status'] === 200) { 
             Storage::create('storage/'. $config['client_id'] . '.json', $response['data']);

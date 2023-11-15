@@ -9,9 +9,15 @@ class AmoController
 {
     public function create()
     {
+        $request = $_POST;
         $client = new AmoClient(include('api/app/config.php'));
+        if ( $request['price'] ) { 
 
-        var_dump($client->contacts()->create());
+        }
+        $contact = $client->leads()->create();
+        $contact->name  = 'Artem';
+        $contact->price = 12313231; 
+        $contact->save();
 
         // Response::success(["data" => 123]);
     }

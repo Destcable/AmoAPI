@@ -4,14 +4,15 @@ namespace Client\Models;
 
 use Client\Models\BaseModel;
 
-class ContactModel extends BaseModel
+class LeadModel extends BaseModel
 {
     protected array $writableFields = [
         'id',
-        'first_name'
+        'status_id',
+        'price'
     ];
 
     protected array $requiredFields = [
-        'name'
+        'name',
     ];
 }

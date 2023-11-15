@@ -3,8 +3,10 @@
 namespace Client\Services;
 
 use Client\Services\BaseService;
+use Client\Models\LeadModel;
 
 class LeadService extends BaseService
 {
-    protected string $entity = 'leads';
+    public string $entity = 'leads';
+    protected $model = LeadModel::class;
 }
