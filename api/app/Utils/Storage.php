@@ -12,5 +12,6 @@ class Storage
     public static function get(string $path)
     {
         file_get_contents($path);
+        
     }
 }
